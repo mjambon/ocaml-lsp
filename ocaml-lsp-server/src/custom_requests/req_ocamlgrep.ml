@@ -17,17 +17,8 @@ module Request_params = struct
     let query = json |> member "query" |> to_string in
     { text_document; query }
   ;;
-
-  let _yojson_of_t { text_document; query } =
-    `Assoc
-      [ "textDocument", TextDocumentIdentifier.yojson_of_t text_document
-      ; "query", `String query
-      ]
-  ;;
 end
 
-(* Convert a merlin finding to an LSP-style JSON object.
-   The file path is made absolute using the workspace root. *)
 let yojson_of_finding workspace_root (f : Query_protocol.ocamlgrep_finding) =
   let abs_path = Filename.concat workspace_root f.loc.loc_start.pos_fname in
   let uri = Uri.of_path abs_path in
@@ -54,14 +45,32 @@ let dispatch merlin workspace_root query =
     yojson_of_result workspace_root result)
 ;;
 
+let raise_error fmt =
+  Printf.ksprintf
+    (fun msg ->
+      Jsonrpc.Response.Error.raise
+        (Jsonrpc.Response.Error.make ~code:InternalError ~message:msg ()))
+    fmt
+;;
+
 let on_request ~params state =
   Fiber.of_thunk (fun () ->
     let params = (Option.value ~default:(`Assoc []) params :> Yojson.Safe.t) in
     let Request_params.{ text_document = { uri }; query } =
-      Request_params.t_of_yojson params
+      match Request_params.t_of_yojson params with
+      | v -> v
+      | exception exn -> raise_error "params: %s" (Printexc.to_string exn)
     in
-    let workspace_root = State.workspace_root state |> Uri.to_path in
-    let doc = Document_store.get state.State.store uri in
+    let workspace_root =
+      match State.workspace_root state |> Uri.to_path with
+      | v -> v
+      | exception exn -> raise_error "workspace_root: %s" (Printexc.to_string exn)
+    in
+    let doc =
+      match Document_store.get state.State.store uri with
+      | v -> v
+      | exception exn -> raise_error "document_store: %s" (Printexc.to_string exn)
+    in
     match Document.kind doc with
     | `Other -> Fiber.return `Null
     | `Merlin merlin -> dispatch merlin workspace_root query)
