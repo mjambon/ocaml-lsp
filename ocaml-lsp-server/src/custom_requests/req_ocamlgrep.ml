@@ -45,7 +45,10 @@ let yojson_of_result workspace_root (r : Query_protocol.ocamlgrep_result) =
 
 let dispatch merlin workspace_root query =
   Document.Merlin.with_pipeline_exn merlin (fun pipeline ->
-    let result = Query_commands.dispatch pipeline (Query_protocol.Ocamlgrep (query, None)) in
+    let result =
+      Query_commands.dispatch pipeline
+        (Query_protocol.Ocamlgrep (query, Some workspace_root))
+    in
     yojson_of_result workspace_root result)
 ;;
 
