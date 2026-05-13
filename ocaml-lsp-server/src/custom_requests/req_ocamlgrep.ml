@@ -16,7 +16,7 @@ module Request_params = struct
     { text_document = textDocumentPosition.textDocument; query }
   ;;
 
-  let yojson_of_t { text_document; query } =
+  let _yojson_of_t { text_document; query } =
     `Assoc
       [ "textDocument", TextDocumentIdentifier.yojson_of_t text_document
       ; "query", `String query
