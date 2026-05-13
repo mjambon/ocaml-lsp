@@ -11,9 +11,11 @@ module Request_params = struct
 
   let t_of_yojson json =
     let open Yojson.Safe.Util in
-    let textDocumentPosition = Lsp.Types.TextDocumentPositionParams.t_of_yojson json in
+    let text_document =
+      json |> member "textDocument" |> TextDocumentIdentifier.t_of_yojson
+    in
     let query = json |> member "query" |> to_string in
-    { text_document = textDocumentPosition.textDocument; query }
+    { text_document; query }
   ;;
 
   let _yojson_of_t { text_document; query } =
