@@ -73,5 +73,12 @@ let on_request ~params state =
     in
     match Document.kind doc with
     | `Other -> Fiber.return `Null
-    | `Merlin merlin -> dispatch merlin workspace_root query)
+    | `Merlin merlin ->
+      let open Fiber.O in
+      let* result = Fiber.collect_errors (fun () -> dispatch merlin workspace_root query) in
+      (match result with
+       | Ok json -> Fiber.return json
+       | Error [] -> raise_error "dispatch: unknown error"
+       | Error (e :: _) ->
+         raise_error "dispatch: %s" (Printexc.to_string e.Exn_with_backtrace.exn)))
 ;;
