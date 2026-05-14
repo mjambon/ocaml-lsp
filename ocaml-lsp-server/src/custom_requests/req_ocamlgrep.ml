@@ -1,3 +1,15 @@
+(* Handler for the [ocamllsp/ocamlgrep] custom LSP request.
+
+   Params:  { textDocument: { uri }, query: string }
+   Response: { findings: [{ uri, range, lines }], warnings: string[] }
+
+   The [uri] in params identifies any open file in the target project; it is
+   used only to locate a merlin pipeline (and thus the project root) — the
+   search itself is project-wide and ignores the buffer contents.  The
+   workspace root from the LSP initialisation params is passed to merlin as
+   the search root so that it can locate the dune project and its build
+   artefacts regardless of the server's working directory. *)
+
 open Import
 
 let meth = "ocamllsp/ocamlgrep"
