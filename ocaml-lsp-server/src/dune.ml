@@ -31,9 +31,8 @@ module Chan : sig
   type t
 
   val create : Lev_fiber_csexp.Session.t -> t
-  val write : t -> Csexp.t list -> unit Fiber.t
+  val write : t -> Csexp.t list option -> unit Fiber.t
   val read : t -> Csexp.t option Fiber.t
-  val close : t -> unit Fiber.t
   val stop : t -> unit Fiber.t
   val run : t -> unit Fiber.t
 end = struct
@@ -44,13 +43,16 @@ end = struct
     ; finished : unit Fiber.Ivar.t
     }
 
-  let close t =
+  let stop t =
     let+ () = Fiber.return () in
     Lev_fiber_csexp.Session.close t.session
   ;;
 
-  let stop = close
-  let write t sexp = Lev_fiber_csexp.Session.write t.session sexp
+  let write t sexp =
+    match sexp with
+    | None -> stop t
+    | Some sexp -> Lev_fiber_csexp.Session.write t.session sexp
+  ;;
 
   let read t =
     let* read = Lev_fiber_csexp.Session.read t.session in
@@ -77,12 +79,6 @@ module Client =
       let parallel_iter t ~f =
         let stream = Fiber.Stream.In.create t in
         Fiber.Stream.In.parallel_iter stream ~f
-      ;;
-
-      let collect_errors f =
-        let open Fiber.O in
-        let+ res = Fiber.collect_errors f in
-        Result.map_error res ~f:(List.map ~f:(fun (exn: Exn_with_backtrace.t) -> exn.exn))
       ;;
     end)
     (Chan)
@@ -474,10 +470,10 @@ end = struct
            Fiber.Ivar.fill finish ())
         ; (let init =
              let id =
-               Drpc.Request.Id.make
+               Drpc.Id.make
                  (List [ Atom "ocamllsp"; Atom (Int.to_string (Id.to_int running.id)) ])
              in
-             Drpc.Request.Initialize.create ~id
+             Drpc.Initialize.create ~id
            in
            let where =
              match where with
