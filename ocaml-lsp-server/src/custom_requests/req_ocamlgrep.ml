@@ -1,14 +1,18 @@
 (* Handler for the [ocamllsp/ocamlgrep] custom LSP request.
 
    Params:  { textDocument: { uri }, query: string }
-   Response: { findings: [{ uri, range, lines }], warnings: string[] }
+   Response: { findings: [{ uri, range, lines }], warnings: string[], errors: string[] }
 
    The [uri] in params identifies any open file in the target project; it is
    used only to locate a merlin pipeline (and thus the project root) — the
    search itself is project-wide and ignores the buffer contents.  The
    workspace root from the LSP initialisation params is passed to merlin as
    the search root so that it can locate the dune project and its build
-   artefacts regardless of the server's working directory. *)
+   artefacts regardless of the server's working directory.
+
+   The [errors] field carries user-facing error messages (e.g. "project root
+   not found").  These are distinct from internal/unexpected errors which still
+   raise a JSON-RPC error response. *)
 
 open Import
 
@@ -41,11 +45,22 @@ let yojson_of_finding workspace_root (f : Query_protocol.ocamlgrep_finding) =
     ]
 ;;
 
-let yojson_of_result workspace_root (r : Query_protocol.ocamlgrep_result) =
-  `Assoc
-    [ "findings", `List (List.map ~f:(yojson_of_finding workspace_root) r.findings)
-    ; "warnings", `List (List.map ~f:(fun s -> `String s) r.warnings)
-    ]
+let yojson_of_result workspace_root
+    (r : (Query_protocol.ocamlgrep_result, string) result) =
+  let strs ss = `List (List.map ~f:(fun s -> `String s) ss) in
+  match r with
+  | Ok { findings; warnings } ->
+    `Assoc
+      [ "findings", `List (List.map ~f:(yojson_of_finding workspace_root) findings)
+      ; "warnings", strs warnings
+      ; "errors", `List []
+      ]
+  | Error msg ->
+    `Assoc
+      [ "findings", `List []
+      ; "warnings", `List []
+      ; "errors", strs [ msg ]
+      ]
 ;;
 
 let dispatch merlin workspace_root query =
