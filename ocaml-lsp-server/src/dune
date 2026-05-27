@@ -14,6 +14,7 @@
   spawn
   lsp
   lsp_fiber
+  ocamlgrep
   merlin-lib.dot_protocol
   merlin-lib.analysis
   merlin-lib.kernel
