@@ -33,7 +33,7 @@ module Request_params = struct
 end
 
 let yojson_of_finding workspace_root (f : Ocamlgrep.Scan.finding) =
-  let abs_path = Filename.concat workspace_root f.loc.loc_start.pos_fname in
+  let abs_path = Filename.concat workspace_root (Ocamlgrep.Scan.finding_filename f) in
   let uri = Uri.of_path abs_path in
   `Assoc
     [ "uri",   `String (Uri.to_string uri)
