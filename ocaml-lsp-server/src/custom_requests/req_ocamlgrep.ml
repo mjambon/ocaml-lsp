@@ -32,16 +32,21 @@ module Request_params = struct
   ;;
 end
 
-let yojson_of_finding root (f : Ocamlgrep.Match.finding) =
-  (* f.loc is compiler-libs.Location.t; field access resolves correctly by type
-     even though [Location] in this scope refers to the LSP Location module. *)
-  let source = f.loc.loc_start.pos_fname in
+let to_merlin_loc
+    ({loc_start; loc_end; loc_ghost} : Ocamlgrep.location) : Loc.t = {
+  loc_start;
+  loc_end;
+  loc_ghost;
+}
+
+let yojson_of_finding root (finding : Ocamlgrep.finding) =
+  let source = finding.loc.loc_start.pos_fname in
   let abs_path = Filename.concat root source in
   let uri = Uri.of_path abs_path in
   `Assoc
     [ "uri", `String (Uri.to_string uri)
-    ; "range", Range.yojson_of_t (Range.of_loc f.loc)
-    ; "lines", `List (List.map ~f:(fun s -> `String s) f.lines)
+    ; "range", Range.yojson_of_t (Range.of_loc (to_merlin_loc finding.loc))
+    ; "lines", `List (List.map ~f:(fun s -> `String s) finding.lines)
     ]
 ;;
 
@@ -71,19 +76,19 @@ let on_request ~params state =
     let json_warnings = ref [] in
     let json_errors = ref [] in
     List.iter
-      (fun (ws : WorkspaceFolder.t) ->
+      ~f:(fun (ws : WorkspaceFolder.t) ->
         let root = Uri.to_path ws.uri in
-        match Ocamlgrep.Scan.search ~root query with
+        match Ocamlgrep.search ~root query with
         | Error msg ->
             let msg = `String (sprintf "workspace folder %s: %s" root msg) in
             json_errors := msg :: !json_errors
         | Ok (findings, ws_warnings) ->
           json_warnings :=
             List.rev_append
-              (List.map (fun s -> `String s) ws_warnings)
+              (List.map ~f:(fun s -> `String s) ws_warnings)
               !json_warnings;
           List.iter
-            (fun f ->
+            ~f:(fun f ->
                json_findings := yojson_of_finding root f :: !json_findings)
             findings)
       folders;
