@@ -68,36 +68,31 @@ let on_request ~params state =
       Workspaces.workspace_folders (State.workspaces state)
     in
     let json_findings = ref [] in
-    let warnings = ref [] in
-    let first_error = ref None in
+    let json_warnings = ref [] in
+    let json_errors = ref [] in
     List.iter
       (fun (ws : WorkspaceFolder.t) ->
         let root = Uri.to_path ws.uri in
         match Ocamlgrep.Scan.search ~root query with
         | Error msg ->
-          if !first_error = None then first_error := Some msg
+            let msg = `String (sprintf "workspace folder %s: %s" root msg) in
+            json_errors := msg :: !json_errors
         | Ok (findings, ws_warnings) ->
-          warnings := List.rev_append ws_warnings !warnings;
+          json_warnings :=
+            List.rev_append
+              (List.map (fun s -> `String s) ws_warnings)
+              !json_warnings;
           List.iter
-            (fun f -> json_findings := yojson_of_finding root f :: !json_findings)
+            (fun f ->
+               json_findings := yojson_of_finding root f :: !json_findings)
             findings)
       folders;
     let response =
-      match !first_error with
-      | Some msg when !json_findings = [] ->
-        (* All folders errored (e.g. bad query syntax); report it. *)
-        `Assoc
-          [ "findings", `List []
-          ; "warnings", `List []
-          ; "errors", `List [ `String msg ]
-          ]
-      | _ ->
-        let strs ss = `List (List.map ~f:(fun s -> `String s) ss) in
-        `Assoc
-          [ "findings", `List (List.rev !json_findings)
-          ; "warnings", strs (List.rev !warnings)
-          ; "errors", `List []
-          ]
+      `Assoc [
+        "findings", `List (List.rev !json_findings);
+        "warnings", `List (List.rev !json_warnings);
+        "errors", `List (List.rev !json_errors)
+      ]
     in
     Fiber.return response)
 ;;
