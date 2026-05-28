@@ -72,7 +72,8 @@ possible and does not make any assumptions about IO.
   (odoc :with-doc)
   (merlin-lib (and (>= 5.7) (< 5.8)))
   (ocaml-index :post)
-  (ppx_yojson_conv :with-dev-setup)))
+  (ppx_yojson_conv :with-dev-setup)
+  ocamlgrep-lib))
 
 (package
  (name jsonrpc)
