@@ -48,6 +48,7 @@ depends: [
   "merlin-lib" {>= "5.7" & < "5.8"}
   "ocaml-index" {post}
   "ppx_yojson_conv" {with-dev-setup}
+  "ocamlgrep-lib"
 ]
 dev-repo: "git+https://github.com/ocaml/ocaml-lsp.git"
 build: [
